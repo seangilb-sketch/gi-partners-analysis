@@ -4,8 +4,6 @@ import { useState } from "react";
 import {
   pitchbookPeers,
   pitchbookGI,
-  preqinPeers,
-  preqinGI,
   compositionPeers,
   compositionGI,
 } from "@/lib/data";
@@ -36,58 +34,41 @@ function PctileBadge({ value }: { value: number }) {
   );
 }
 
-function StatBar({
-  label,
-  p25,
-  median,
-  p75,
-  giValue,
-  decimals = 0,
-  prefix = "$",
-  suffix = "M",
+function PeerContext({
+  rows,
+  giLabel,
 }: {
-  label: string;
-  p25: number;
-  median: number;
-  p75: number;
-  giValue: number;
-  decimals?: number;
-  prefix?: string;
-  suffix?: string;
+  rows: { label: string; p25: string; median: string; p75: string; gi: string }[];
+  giLabel?: string;
 }) {
-  const min = Math.min(p25, giValue) * 0.8;
-  const max = p75 * 1.15;
-  const range = max - min || 1;
-  const pct = (v: number) => ((v - min) / range) * 100;
-
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-semibold text-[var(--color-gi-text)]">{label}</span>
-        <span className="text-sm font-bold text-[var(--color-gi-navy)]">
-          GI: {prefix}{fmt(giValue, decimals)}{suffix}
-        </span>
-      </div>
-      <div className="relative h-3 bg-[var(--color-gi-bg-alt)] rounded-full border border-[var(--color-gi-border)]">
-        <div
-          className="absolute top-0 h-full bg-[var(--color-gi-teal)] opacity-20 rounded-full"
-          style={{ left: `${pct(p25)}%`, width: `${pct(p75) - pct(p25)}%` }}
-        />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--color-gi-text-light)]"
-          style={{ left: `${pct(median)}%` }}
-          title={`Median: ${prefix}${fmt(median, decimals)}${suffix}`}
-        />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[var(--color-gi-navy)] border-2 border-white shadow-sm"
-          style={{ left: `${pct(giValue)}%`, marginLeft: "-6px" }}
-          title={`GI: ${prefix}${fmt(giValue, decimals)}${suffix}`}
-        />
-      </div>
-      <div className="flex justify-between text-[10px] text-[var(--color-gi-muted)] mt-1 font-sans">
-        <span>p25: {prefix}{fmt(p25, decimals)}{suffix}</span>
-        <span>Median: {prefix}{fmt(median, decimals)}{suffix}</span>
-        <span>p75: {prefix}{fmt(p75, decimals)}{suffix}</span>
+    <div className="bg-white rounded border border-[var(--color-gi-border)] p-6 mb-8">
+      <h3 className="text-sm font-semibold text-[var(--color-gi-text)] uppercase tracking-widest mb-4 font-sans">
+        Where GI Partners Sits Among Peers
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--color-gi-border)]">
+              <th className="text-left py-2 pr-4 text-xs font-semibold text-[var(--color-gi-muted)] uppercase tracking-wide">Metric</th>
+              <th className="text-right py-2 px-4 text-xs font-semibold text-[var(--color-gi-muted)] uppercase tracking-wide">25th Percentile</th>
+              <th className="text-right py-2 px-4 text-xs font-semibold text-[var(--color-gi-muted)] uppercase tracking-wide">Median (50th)</th>
+              <th className="text-right py-2 px-4 text-xs font-semibold text-[var(--color-gi-muted)] uppercase tracking-wide">75th Percentile</th>
+              <th className="text-right py-2 pl-4 text-xs font-bold text-[var(--color-gi-navy)] uppercase tracking-wide">{giLabel ?? "GI Partners"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-b border-[var(--color-gi-border)] last:border-0">
+                <td className="py-2.5 pr-4 font-semibold text-[var(--color-gi-text)]">{r.label}</td>
+                <td className="py-2.5 px-4 text-right tabular-nums text-[var(--color-gi-text-light)]">{r.p25}</td>
+                <td className="py-2.5 px-4 text-right tabular-nums font-semibold text-[var(--color-gi-text)]">{r.median}</td>
+                <td className="py-2.5 px-4 text-right tabular-nums text-[var(--color-gi-text-light)]">{r.p75}</td>
+                <td className="py-2.5 pl-4 text-right tabular-nums font-bold text-[var(--color-gi-navy)]">{r.gi}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -263,12 +244,11 @@ function PositionCard({
 }
 
 export default function Page() {
-  const [activeTab, setActiveTab] = useState<"pitchbook" | "preqin" | "composition">("pitchbook");
+  const [activeTab, setActiveTab] = useState<"pitchbook" | "composition">("pitchbook");
 
   const tabs = [
-    { id: "pitchbook" as const, label: "PitchBook — AUM Efficiency" },
-    { id: "preqin" as const, label: "Preqin — Fundraising Efficiency" },
-    { id: "composition" as const, label: "Preqin — Staff Composition" },
+    { id: "pitchbook" as const, label: "AUM Efficiency", source: "PitchBook" },
+    { id: "composition" as const, label: "Staff Composition", source: "Preqin" },
   ];
 
   return (
@@ -299,31 +279,32 @@ export default function Page() {
       <main className="max-w-7xl mx-auto px-6 -mt-6">
         {/* GI Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-10">
-          <MetricCard label="AUM" value={`$${fmt(pitchbookGI.aum)}M`} sub="PitchBook" />
-          <MetricCard label="10yr Raised" value={`$${fmt(preqinGI.raised)}M`} sub="Preqin" />
-          <MetricCard label="Inv. Professionals" value={`${pitchbookGI.headcount}`} sub="PitchBook" />
-          <MetricCard label="Total Staff" value={`${preqinGI.staffTotal}`} sub="Preqin" />
-          <MetricCard label="Active Portfolio" value={`${fmt(pitchbookGI.active)}`} sub="Companies" />
-          <MetricCard label="Total Investments" value={`${fmt(pitchbookGI.totalInv)}`} sub="Lifetime" />
+          <MetricCard label="AUM" value={`$${fmt(pitchbookGI.aum)}M`} sub="Source: PitchBook Q1 2026" />
+          <MetricCard label="10yr Raised" value="$7,494M" sub="Source: Preqin Q1 2025" />
+          <MetricCard label="Inv. Professionals" value={`${pitchbookGI.headcount}`} sub="Source: PitchBook Q1 2026" />
+          <MetricCard label="Total Staff" value={`${compositionGI.staffTotal}`} sub="Source: Preqin Q1 2025" />
+          <MetricCard label="Active Portfolio" value={`${fmt(pitchbookGI.active)}`} sub="Source: PitchBook Q1 2026" />
+          <MetricCard label="Total Investments" value={`${fmt(pitchbookGI.totalInv)}`} sub="Source: PitchBook Q1 2026" />
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-[var(--color-gi-border)] mb-8">
-          <div className="flex gap-0">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`px-6 py-3 text-sm font-semibold font-sans tracking-wide border-b-2 transition-colors ${
-                  activeTab === t.id
-                    ? "border-[var(--color-gi-navy)] text-[var(--color-gi-navy)]"
-                    : "border-transparent text-[var(--color-gi-muted)] hover:text-[var(--color-gi-text)]"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        {/* Tabs — styled as obvious clickable buttons */}
+        <div className="flex gap-3 mb-8">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`px-6 py-3 rounded font-sans text-sm font-semibold tracking-wide transition-all ${
+                activeTab === t.id
+                  ? "bg-[var(--color-gi-navy)] text-white shadow-md"
+                  : "bg-white text-[var(--color-gi-text-light)] border border-[var(--color-gi-border)] hover:border-[var(--color-gi-teal)] hover:text-[var(--color-gi-navy)] cursor-pointer"
+              }`}
+            >
+              {t.label}
+              <span className={`ml-2 text-xs font-normal ${activeTab === t.id ? "text-[var(--color-gi-teal)]" : "text-[var(--color-gi-muted)]"}`}>
+                {t.source}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* PitchBook Tab */}
@@ -356,28 +337,24 @@ export default function Page() {
               />
             </div>
 
-            <div className="bg-white rounded border border-[var(--color-gi-border)] p-6 mb-8">
-              <h3 className="text-sm font-semibold text-[var(--color-gi-text)] uppercase tracking-widest mb-5 font-sans">
-                Peer Distribution
-              </h3>
-              <StatBar
-                label="AUM / Head"
-                p25={pitchbookGI.stats.aumPerHead.p25}
-                median={pitchbookGI.stats.aumPerHead.median}
-                p75={pitchbookGI.stats.aumPerHead.p75}
-                giValue={pitchbookGI.aumPerHead}
-              />
-              <StatBar
-                label="Portcos / Head"
-                p25={pitchbookGI.stats.portcosPerHead.p25}
-                median={pitchbookGI.stats.portcosPerHead.median}
-                p75={pitchbookGI.stats.portcosPerHead.p75}
-                giValue={pitchbookGI.portcosPerHead ?? 0}
-                prefix=""
-                suffix=""
-                decimals={2}
-              />
-            </div>
+            <PeerContext
+              rows={[
+                {
+                  label: "AUM per Head ($M)",
+                  p25: `$${fmt(pitchbookGI.stats.aumPerHead.p25)}M`,
+                  median: `$${fmt(pitchbookGI.stats.aumPerHead.median)}M`,
+                  p75: `$${fmt(pitchbookGI.stats.aumPerHead.p75)}M`,
+                  gi: `$${fmt(pitchbookGI.aumPerHead)}M`,
+                },
+                {
+                  label: "Portcos per Head",
+                  p25: fmt(pitchbookGI.stats.portcosPerHead.p25, 2),
+                  median: fmt(pitchbookGI.stats.portcosPerHead.median, 2),
+                  p75: fmt(pitchbookGI.stats.portcosPerHead.p75, 2),
+                  gi: fmt(pitchbookGI.portcosPerHead, 2),
+                },
+              ]}
+            />
 
             <h3 className="font-serif text-xl text-[var(--color-gi-navy)] mb-4">Full Peer Table</h3>
             <SortableTable
@@ -400,87 +377,14 @@ export default function Page() {
           </div>
         )}
 
-        {/* Preqin Tab */}
-        {activeTab === "preqin" && (
-          <div>
-            <div className="mb-6 p-5 bg-[var(--color-gi-bg-alt)] rounded border-l-4 border-[var(--color-gi-teal)]">
-              <div className="text-sm text-[var(--color-gi-text-light)] leading-relaxed">
-                <strong className="text-[var(--color-gi-text)]">Peer set:</strong>{" "}
-                {preqinGI.peerCount} US PE firms and fund managers with $5B&ndash;$25B raised in the
-                last 10 years and 10+ staff. Excludes fund-of-funds, family offices, hedge funds,
-                corporate investors.
-                <br />
-                <strong className="text-[var(--color-gi-text)]">Note:</strong> Preqin reports
-                &ldquo;total funds raised (10yr)&rdquo; rather than AUM. GI Partners shows $7.5B
-                raised vs. $34B AUM in PitchBook &mdash; the gap reflects legacy/recycled capital
-                not captured in the 10-year window.
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              <PositionCard
-                label="Raised per Total Staff"
-                value={`$${fmt(preqinGI.raisedPerTotal)}M`}
-                rank={preqinGI.raisedPerTotalRank}
-                peerCount={preqinGI.peerCount}
-                pctile={preqinGI.raisedPerTotalPctile}
-              />
-              <PositionCard
-                label="Raised per Investment Staff"
-                value={`$${fmt(preqinGI.raisedPerInv)}M`}
-                rank={preqinGI.raisedPerInvRank}
-                peerCount={preqinGI.peerCount}
-                pctile={preqinGI.raisedPerInvPctile}
-              />
-            </div>
-
-            <div className="bg-white rounded border border-[var(--color-gi-border)] p-6 mb-8">
-              <h3 className="text-sm font-semibold text-[var(--color-gi-text)] uppercase tracking-widest mb-5 font-sans">
-                Peer Distribution
-              </h3>
-              <StatBar
-                label="Raised / Total Staff"
-                p25={preqinGI.stats.raisedPerTotal.p25}
-                median={preqinGI.stats.raisedPerTotal.median}
-                p75={preqinGI.stats.raisedPerTotal.p75}
-                giValue={preqinGI.raisedPerTotal}
-              />
-              <StatBar
-                label="Raised / Inv Staff"
-                p25={preqinGI.stats.raisedPerInv.p25}
-                median={preqinGI.stats.raisedPerInv.median}
-                p75={preqinGI.stats.raisedPerInv.p75}
-                giValue={preqinGI.raisedPerInv}
-              />
-            </div>
-
-            <h3 className="font-serif text-xl text-[var(--color-gi-navy)] mb-4">Full Peer Table</h3>
-            <SortableTable
-              data={preqinPeers as unknown as Record<string, unknown>[]}
-              highlightFirm="GI Partners"
-              defaultSort="raisedPerTotal"
-              columns={[
-                { key: "firm", label: "Firm" },
-                { key: "type", label: "Type" },
-                { key: "state", label: "State" },
-                { key: "raised", label: "Raised ($M)", align: "right", fmt: (v) => fmt(v as number) },
-                { key: "staffTotal", label: "Total Staff", align: "right", fmt: (v) => fmt(v as number) },
-                { key: "staffInv", label: "Inv Staff", align: "right", fmt: (v) => fmt(v as number) },
-                { key: "raisedPerTotal", label: "Raised/Staff ($M)", align: "right", fmt: (v) => fmt(v as number, 1) },
-                { key: "raisedPerInv", label: "Raised/Inv ($M)", align: "right", fmt: (v) => fmt(v as number, 1) },
-              ]}
-            />
-          </div>
-        )}
-
         {/* Composition Tab */}
         {activeTab === "composition" && (
           <div>
             <div className="mb-6 p-5 bg-[var(--color-gi-bg-alt)] rounded border-l-4 border-[var(--color-gi-teal)]">
               <div className="text-sm text-[var(--color-gi-text-light)] leading-relaxed">
                 <strong className="text-[var(--color-gi-text)]">Peer set:</strong>{" "}
-                {compositionGI.peerCount} US PE firms and fund managers ($5B&ndash;$25B raised, 10yr)
-                with both total and investment staff counts reported.
+                {compositionGI.peerCount} US PE firms and fund managers ($5B&ndash;$25B raised over 10 years)
+                with both total and investment staff counts reported. Excludes fund-of-funds, family offices, hedge funds.
                 <br />
                 <strong className="text-[var(--color-gi-text)]">Question:</strong> What share of
                 GI&apos;s workforce is investment professionals vs. operations/support?
@@ -526,15 +430,15 @@ export default function Page() {
                 </div>
                 <div className="mt-3 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-[var(--color-gi-muted)]">p25</span>
+                    <span className="text-[var(--color-gi-muted)]">25th Percentile</span>
                     <span className="tabular-nums">{compositionGI.stats.invPct.p25}%</span>
                   </div>
                   <div className="flex justify-between font-semibold">
-                    <span className="text-[var(--color-gi-text)]">Median</span>
+                    <span className="text-[var(--color-gi-text)]">Median (50th)</span>
                     <span className="tabular-nums">{compositionGI.stats.invPct.median}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[var(--color-gi-muted)]">p75</span>
+                    <span className="text-[var(--color-gi-muted)]">75th Percentile</span>
                     <span className="tabular-nums">{compositionGI.stats.invPct.p75}%</span>
                   </div>
                   <div className="flex justify-between text-[var(--color-gi-navy)] font-bold border-t border-[var(--color-gi-border)] pt-2">
